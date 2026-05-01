@@ -87,7 +87,7 @@ def main : IO Unit := do
   -- text that would trick a naive LLM into emitting delete/read
   -- programs against files the task never authorised.
   --
-  -- In each attack below we show the JSON the "hijacked" LLM emits
+  -- In each attack below we show the JSON the LLM emits
   -- and confirm it is rejected *before any IO occurs*.  Then we prove
   -- the target file still exists unchanged.
   -- ═══════════════════════════════════════════════════════════════════

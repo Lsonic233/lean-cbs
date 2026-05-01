@@ -1,9 +1,6 @@
 import LeanCbs
 open Lean (Json)
 
--- ─────────────────────────────────────────────────────────────────────────────
--- Minimal test harness
--- ─────────────────────────────────────────────────────────────────────────────
 
 private structure TestState where
   passed : Nat := 0
