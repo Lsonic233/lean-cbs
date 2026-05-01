@@ -28,7 +28,7 @@ structure Cap where
   deriving DecidableEq, Repr
 
 inductive CapError where
-  | invalidCap     : CapId → CapError
+  | invalidCap : CapId → CapError
   | wrongAuthority : CapError
   deriving Repr
 
@@ -37,8 +37,8 @@ inductive CapError where
    =========================================================== -/
 
 inductive CapCmd : Type → Type where
-  | read   : Cap → CapCmd String
-  | write  : Cap → String → CapCmd Unit
+  | read : Cap → CapCmd String
+  | write : Cap → String → CapCmd Unit
   | delete : Cap → CapCmd Unit
 
 inductive CapM : Type → Type _ where

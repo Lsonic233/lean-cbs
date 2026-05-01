@@ -13,3 +13,7 @@ name = "LeanCbs"
 [[lean_exe]]
 name = "lean-cbs"
 root = "Main"
+
+[[lean_exe]]
+name = "lean-cbs-tests"
+root = "Tests"

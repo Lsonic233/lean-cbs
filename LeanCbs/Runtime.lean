@@ -1,19 +1,12 @@
 import LeanCbs.Core
 open IO FS System
 
-/- ===========================================================
-   Cap minting API
-   =========================================================== -/
-
 def CapEnv.revoke (env : CapEnv) (id : CapId): CapEnv :=
   { nextId := env.nextId,
     wallet := env.wallet.filter (fun c => c.identity ≠ id)
     revoked := env.revoked ++ [id]
   }
 
-/- ===========================================================
-   Pure cap-layer checks
-   =========================================================== -/
 /-
 Looks at one command and decides whether that command is allowed under
 the current capability environment.
@@ -32,54 +25,9 @@ def CapCmd.check (env : CapEnv) : {β : Type} → CapCmd β → Except CapError 
       else if c.authority != .delete then .error .wrongAuthority
       else .ok ()
 
-/-
-Head-of-program cap check: inspects only the outermost command of `prog`.
--/
--- def CapM.checkHead (env : CapEnv) : {α : Type} → CapM α → Except CapError Unit
---   | _, .pure _    => .ok ()
---   | _, .cons cmd _ => CapCmd.check env cmd
-
-/- ===========================================================
-   Soundness theorems
-   =========================================================== -/
 
 /-
-Soundness of the cap layer — pure, provable, no `IO` anywhere.
-
-"If a program is safe under `env`, then the cap-layer pre-pass accepts
-its head command." Because `CapM.run` now guards every step on exactly
-`CapCmd.check`, the `.error` branch of the interpreter is unreachable
-on a `SafeProg` — the `CapError` path has been closed off at the type
-level, not at runtime.
--/
--- theorem SafeProg.checkHead_ok {α : Type} {env : CapEnv} {prog : CapM α}
---     (h : SafeProg env prog) : CapM.checkHead env prog = .ok () := by
---   induction h with
---   | pureSafe _ _ => rfl
---   | readSafe _ c hv ha =>
---       simp [CapM.checkHead, CapM.read, CapCmd.check,
---             CapEnv.isValid_of_valid hv, ha]
---   | writeSafe _ c s hv ha =>
---       simp [CapM.checkHead, CapM.write, CapCmd.check,
---             CapEnv.isValid_of_valid hv, ha]
---   | deleteSafe _ c hv ha =>
---       simp [CapM.checkHead, CapM.delete, CapCmd.check,
---             CapEnv.isValid_of_valid hv, ha]
---   | flatMapSafe _ x _ _ ih1 ih2 =>
---       cases x with
---       | pure a =>
---           -- (pure a).flatMap f = f a
---           exact ih2 a
---       | cons cmd k =>
---           -- (cons cmd k).flatMap f = cons cmd (...), same head cmd as x
---           exact ih1
-
-/-
-Full-trace soundness. `checkHead_ok` only covers the outermost command;
-to claim the interpreter never raises a `CapError` on *any* step we need
-an invariant that talks about the whole tree of reachable continuations.
-
-`AllSafe env prog` says: every command anywhere in `prog` (head, and all
+`AllSafe env prog` says that every command anywhere in `prog` (head, and all
 continuations after every possible runtime input) passes `CapCmd.check`.
 The `cons` case carries `∀ b, AllSafe env (k b)` — universal over the
 continuation's input, exactly because we cannot inspect runtime values
@@ -110,9 +58,8 @@ theorem AllSafe.flatMap {α β : Type} {env : CapEnv} {x : CapM α}
       exact AllSafe.cons cmd _ hcheck (fun b => ihk b)
 
 /-
-The full soundness theorem: `SafeProg env prog` implies every reachable
-command of `prog` passes the cap check. This closes the `.error e`
-branch of `CapM.run` not just at the head but at every recursive call.
+Soundness theorem : `SafeProg env prog` implies every reachable
+command of `prog` passes the cap check.
 -/
 theorem SafeProg.allSafe {α : Type} {env : CapEnv} {prog : CapM α}
     (h : SafeProg env prog) : AllSafe env prog := by
@@ -138,12 +85,9 @@ theorem SafeProg.allSafe {α : Type} {env : CapEnv} {prog : CapM α}
 
 
 /-
-`CapM.run` interpreter function - it now delegates every cap-layer decision to `CapCmd.check`.
-The only branches that remain in `IO` are the actual filesystem calls
-and the recursive continuation. If `SafeProg env prog` holds then the
-`.error e` branch below is unreachable.
+`CapM.run` is the actual interpreter function that makes the filesystem calls
 -/
-partial def CapM.run (env : CapEnv) : CapM α → IO (Except CapError α)
+def CapM.run (env : CapEnv) : CapM α → IO (Except CapError α)
   | .pure a => return .ok a
   | .cons cmd k =>
     match CapCmd.check env cmd with
@@ -165,7 +109,9 @@ partial def CapM.run (env : CapEnv) : CapM α → IO (Except CapError α)
         | .file path => do
           IO.FS.removeFile path
           CapM.run env (k ())
-
+/-
+  Same interpreter function as above but has a proof obligation.
+-/
 def CapM.runSafe (env : CapEnv) (prog : CapM α) (_h : SafeProg env prog) :
     IO (Except CapError α) :=
   CapM.run env prog
